@@ -2,10 +2,9 @@ import express from 'express';
 import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
 import dayjs from 'dayjs';
-/* eslint-disable */
-import MessageSchema from "./models/message.js";
+
+import MessageSchema from './models/message.js';
 import PartipantSchema from './models/partipant.js';
-/* eslint-enable */
 
 const app = express();
 app.use(express.json());
@@ -45,6 +44,44 @@ app.post('/partipants', async (req, res) => {
     res.sendStatus(201);
   } catch (e) {
     // eslint-disable-next-line no-console
+    console.log(e);
+    res.sendStatus(500);
+  } finally {
+    client.close();
+  }
+});
+
+app.post('/messages', async (req, res) => {
+  const { body, headers } = req;
+  const message = {
+    from: headers.user,
+    to: body.to,
+    text: body.text,
+    type: body.type,
+    time: dayjs().format('HH:mm:ss'),
+  };
+
+  if (MessageSchema.validate(message).error) {
+    res.status(422).send('ERROR');
+    return;
+  }
+
+  try {
+    await client.connect();
+    const db = client.db(dbName);
+    const checkExists = await db
+      .collection('partipants')
+      .findOne({ name: message.from });
+
+    if (!checkExists) {
+      client.close();
+      res.status(422).send('ERROR');
+      return;
+    }
+
+    await db.collection('messages').insertOne(message);
+    res.sendStatus(201);
+  } catch (e) {
     console.log(e);
     res.sendStatus(500);
   } finally {
