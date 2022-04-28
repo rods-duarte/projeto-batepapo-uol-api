@@ -18,7 +18,7 @@ app.post('/partipants', async (req, res) => {
   const time = Date.now();
 
   if (PartipantSchema.validate(body).error) {
-    res.status(422).send('ERROR');
+    res.sendStatus(422);
     return;
   }
 
@@ -62,7 +62,7 @@ app.post('/messages', async (req, res) => {
   };
 
   if (MessageSchema.validate(message).error) {
-    res.status(422).send('ERROR');
+    res.sendStatus(422);
     return;
   }
 
@@ -75,13 +75,43 @@ app.post('/messages', async (req, res) => {
 
     if (!checkExists) {
       client.close();
-      res.status(422).send('ERROR');
+      res.sendStatus(422);
       return;
     }
 
     await db.collection('messages').insertOne(message);
     res.sendStatus(201);
   } catch (e) {
+    // eslint-disable-next-line no-console
+    console.log(e);
+    res.sendStatus(500);
+  } finally {
+    client.close();
+  }
+});
+
+app.post('/status', async (req, res) => {
+  const { headers } = req;
+
+  try {
+    await client.connect();
+    const db = client.db(dbName);
+    const checkExists = await db
+      .collection('partipants')
+      .findOne({ name: headers.user });
+
+    if (!checkExists) {
+      client.close();
+      res.sendStatus(404);
+      return;
+    }
+
+    await db
+      .collection('partipants')
+      .updateOne({ name: headers.user }, { $set: { lastStatus: Date.now() } });
+    res.sendStatus(200);
+  } catch (e) {
+    // eslint-disable-next-line no-console
     console.log(e);
     res.sendStatus(500);
   } finally {
