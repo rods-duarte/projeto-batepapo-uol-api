@@ -5,24 +5,24 @@ export default function isActive(dbName) {
   const client = new MongoClient(process.env.MONGO_URL);
   setInterval(async () => {
     const time = Date.now();
-    console.log('isActive ?');
     try {
       await client.connect();
       const db = client.db(dbName);
-      const participants = await db.collection('participants').find().toArray();
+      const participants = await db
+        .collection('participants')
+        .find({ lastStatus: { $lt: time - 10000 } })
+        .toArray();
 
-      participants
-        .filter((participant) => time - participant.lastStatus > 10000)
-        .forEach((participant) => {
-          db.collection('participants').deleteOne({ name: participant.name });
-          db.collection('messages').insertOne({
-            from: participant.name,
-            to: 'Todos',
-            text: 'sai da sala....',
-            type: 'status',
-            time: dayjs().format('HH:mm:ss'),
-          });
+      participants.forEach((participant) => {
+        db.collection('participants').deleteOne({ name: participant.name });
+        db.collection('messages').insertOne({
+          from: participant.name,
+          to: 'Todos',
+          text: 'sai da sala....',
+          type: 'status',
+          time: dayjs().format('HH:mm:ss'),
         });
+      });
     } catch (e) {
       // eslint-disable-next-line no-console
       console.log(e);
@@ -35,7 +35,7 @@ export default function isActive(dbName) {
   //       await client.connect();
   //       const db = client.db(dbName);
   //       const name = Math.floor(Math.random() * 100);
-  //       console.log(name);
+  //       //   console.log(name);
   //       await db
   //         .collection('participants')
   //         .insertOne({ name, lastStatus: Date.now() });

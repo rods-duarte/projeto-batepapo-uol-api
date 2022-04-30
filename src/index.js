@@ -14,31 +14,34 @@ app.use(cors());
 app.use(express.json());
 dotenv.config();
 
-const dbName = 'batepapo-uol-api';
+const client = new MongoClient(process.env.MONGO_URL);
+const dbName = process.env.DATABASE_NAME;
+let db;
+
+// eslint-disable-next-line func-names
+(async function () {
+  await client.connect();
+  db = client.db(dbName);
+  console.log('\nConectado ao banco de dados');
+})();
+
+isActive(dbName);
 
 app.get('/participants', async (req, res) => {
-  const client = new MongoClient(process.env.MONGO_URL);
   try {
-    await client.connect();
-    const db = client.db(dbName);
     const participants = await db.collection('participants').find().toArray();
     res.send(participants);
   } catch (e) {
     console.log(e);
     res.sendStatus(500);
-  } finally {
-    client.close();
   }
 });
 
 app.get('/messages', async (req, res) => {
-  const client = new MongoClient(process.env.MONGO_URL);
   let { limit } = req.query;
   const { user } = req.headers;
 
   try {
-    await client.connect();
-    const db = client.db(dbName);
     const messages = await db
       .collection('messages')
       .find({
@@ -55,13 +58,10 @@ app.get('/messages', async (req, res) => {
   } catch (e) {
     console.log(e);
     res.sendStatus(500);
-  } finally {
-    client.close();
   }
 });
 
 app.post('/participants', async (req, res) => {
-  const client = new MongoClient(process.env.MONGO_URL);
   const { body } = req;
   const time = Date.now();
 
@@ -71,15 +71,12 @@ app.post('/participants', async (req, res) => {
   }
 
   try {
-    await client.connect();
-    const db = client.db(dbName);
     const checkExists = await db
       .collection('participants')
-      .findOne({ ...body });
+      .count({ ...body }, { limit: 1 });
 
     if (checkExists) {
       res.sendStatus(409);
-      client.close();
       return;
     }
 
@@ -98,13 +95,10 @@ app.post('/participants', async (req, res) => {
     // eslint-disable-next-line no-console
     console.log(e);
     res.sendStatus(500);
-  } finally {
-    client.close();
   }
 });
 
 app.post('/messages', async (req, res) => {
-  const client = new MongoClient(process.env.MONGO_URL);
   const { body, headers } = req;
   const message = {
     from: headers.user,
@@ -120,14 +114,11 @@ app.post('/messages', async (req, res) => {
   }
 
   try {
-    await client.connect();
-    const db = client.db(dbName);
     const checkExists = await db
       .collection('participants')
-      .findOne({ name: message.from });
+      .count({ name: message.from }, { limit: 1 });
 
     if (!checkExists) {
-      client.close();
       res.sendStatus(422);
       return;
     }
@@ -138,24 +129,18 @@ app.post('/messages', async (req, res) => {
     // eslint-disable-next-line no-console
     console.log(e);
     res.sendStatus(500);
-  } finally {
-    client.close();
   }
 });
 
 app.post('/status', async (req, res) => {
-  const client = new MongoClient(process.env.MONGO_URL);
   const { headers } = req;
 
   try {
-    await client.connect();
-    const db = client.db(dbName);
     const checkExists = await db
       .collection('participants')
-      .findOne({ name: headers.user });
+      .count({ name: headers.user }, { limit: 1 });
 
     if (!checkExists) {
-      client.close();
       res.sendStatus(404);
       return;
     }
@@ -168,12 +153,8 @@ app.post('/status', async (req, res) => {
     // eslint-disable-next-line no-console
     console.log(e);
     res.sendStatus(500);
-  } finally {
-    client.close();
   }
 });
-
-isActive(dbName);
 
 // eslint-disable-next-line no-console
 app.listen(process.env.PORT || 5000, () => console.log('\nServer aberto'));
