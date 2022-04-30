@@ -1,23 +1,27 @@
 import express from 'express';
+import cors from 'cors';
 import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
 import dayjs from 'dayjs';
 
+import isActive from './is_user_active.js';
+
 import MessageSchema from './models/message.js';
-import PartipantSchema from './models/partipant.js';
+import ParticipantSchema from './models/participants.js';
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 dotenv.config();
 
-const client = new MongoClient(process.env.MONGO_URL);
 const dbName = 'batepapo-uol-api';
 
-app.post('/partipants', async (req, res) => {
+app.post('/participants', async (req, res) => {
+  const client = new MongoClient(process.env.MONGO_URL);
   const { body } = req;
   const time = Date.now();
 
-  if (PartipantSchema.validate(body).error) {
+  if (ParticipantSchema.validate(body).error) {
     res.sendStatus(422);
     return;
   }
@@ -25,7 +29,9 @@ app.post('/partipants', async (req, res) => {
   try {
     await client.connect();
     const db = client.db(dbName);
-    const checkExists = await db.collection('partipants').findOne({ ...body });
+    const checkExists = await db
+      .collection('participants')
+      .findOne({ ...body });
 
     if (checkExists) {
       res.sendStatus(409);
@@ -33,7 +39,9 @@ app.post('/partipants', async (req, res) => {
       return;
     }
 
-    await db.collection('partipants').insertOne({ ...body, lastStatus: time });
+    await db
+      .collection('participants')
+      .insertOne({ ...body, lastStatus: time });
     await db.collection('messages').insertOne({
       from: body.name,
       to: 'Todos',
@@ -52,6 +60,7 @@ app.post('/partipants', async (req, res) => {
 });
 
 app.post('/messages', async (req, res) => {
+  const client = new MongoClient(process.env.MONGO_URL);
   const { body, headers } = req;
   const message = {
     from: headers.user,
@@ -70,7 +79,7 @@ app.post('/messages', async (req, res) => {
     await client.connect();
     const db = client.db(dbName);
     const checkExists = await db
-      .collection('partipants')
+      .collection('participants')
       .findOne({ name: message.from });
 
     if (!checkExists) {
@@ -91,13 +100,14 @@ app.post('/messages', async (req, res) => {
 });
 
 app.post('/status', async (req, res) => {
+  const client = new MongoClient(process.env.MONGO_URL);
   const { headers } = req;
 
   try {
     await client.connect();
     const db = client.db(dbName);
     const checkExists = await db
-      .collection('partipants')
+      .collection('participants')
       .findOne({ name: headers.user });
 
     if (!checkExists) {
@@ -107,7 +117,7 @@ app.post('/status', async (req, res) => {
     }
 
     await db
-      .collection('partipants')
+      .collection('participants')
       .updateOne({ name: headers.user }, { $set: { lastStatus: Date.now() } });
     res.sendStatus(200);
   } catch (e) {
@@ -119,5 +129,7 @@ app.post('/status', async (req, res) => {
   }
 });
 
+isActive(dbName);
+
 // eslint-disable-next-line no-console
-app.listen(5000, () => console.log('\n Server aberto na porta 5000'));
+app.listen(process.env.PORT || 5000, () => console.log('\nServer aberto'));
