@@ -16,6 +16,50 @@ dotenv.config();
 
 const dbName = 'batepapo-uol-api';
 
+app.get('/participants', async (req, res) => {
+  const client = new MongoClient(process.env.MONGO_URL);
+  try {
+    await client.connect();
+    const db = client.db(dbName);
+    const participants = await db.collection('participants').find().toArray();
+    res.send(participants);
+  } catch (e) {
+    console.log(e);
+    res.sendStatus(500);
+  } finally {
+    client.close();
+  }
+});
+
+app.get('/messages', async (req, res) => {
+  const client = new MongoClient(process.env.MONGO_URL);
+  let { limit } = req.query;
+  const { user } = req.headers;
+
+  try {
+    await client.connect();
+    const db = client.db(dbName);
+    const messages = await db
+      .collection('messages')
+      .find({
+        $or: [
+          { from: user },
+          { to: user },
+          { to: 'Todos' },
+          { type: 'message' },
+        ],
+      })
+      .toArray();
+    if (!limit || limit <= 0) limit = messages.length;
+    res.send(messages.splice(messages.length - limit, messages.length));
+  } catch (e) {
+    console.log(e);
+    res.sendStatus(500);
+  } finally {
+    client.close();
+  }
+});
+
 app.post('/participants', async (req, res) => {
   const client = new MongoClient(process.env.MONGO_URL);
   const { body } = req;
