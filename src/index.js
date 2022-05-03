@@ -158,5 +158,34 @@ app.post('/status', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+app.delete('/messages/:id', async (req, res) => {
+  const { user } = req.headers;
+  const { id } = req.params;
+  try {
+    const deleteMessage = await db
+      .collection('messages')
+      .findOne({ _id: ObjectId(id) });
+
+    if (!deleteMessage) {
+      res.sendStatus(404);
+      return;
+    }
+
+    if (deleteMessage.from !== user) {
+      res.sendStatus(401);
+      return;
+    }
+
+    await db.collection('messages').deleteOne(deleteMessage);
+
+    res.sendStatus(200);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.log(e);
+    res.sendStatus(500);
+  }
+});
+
 // eslint-disable-next-line no-console
 app.listen(process.env.PORT || 5000, () => console.log('\nServer aberto'));
