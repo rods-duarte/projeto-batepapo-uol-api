@@ -104,9 +104,9 @@ app.post('/participants', async (req, res) => {
 app.post('/messages', async (req, res) => {
   const { body, headers } = req;
   const message = {
-    from: stripHtml(headers.user).result.trim(),
+    from: headers.user,
     to: body.to,
-    text: body.text,
+    text: stripHtml(body.text).result.trim(),
     type: body.type,
     time: dayjs().format('HH:mm:ss'),
   };
@@ -127,7 +127,7 @@ app.post('/messages', async (req, res) => {
     }
 
     await db.collection('messages').insertOne(message);
-    res.sendStatus(201);
+    res.status(201).send(message.text);
   } catch (e) {
     // eslint-disable-next-line no-console
     console.log(e);
@@ -193,7 +193,7 @@ app.put('/messages/:id', async (req, res) => {
   const newMessage = {
     from: headers.user,
     to: body.to,
-    text: body.text,
+    text: stripHtml(body.text).result.trim(),
     type: body.type,
   };
 
@@ -221,7 +221,7 @@ app.put('/messages/:id', async (req, res) => {
       .collection('messages')
       .updateOne({ _id: new ObjectId(id) }, { $set: newMessage });
 
-    res.sendStatus(200);
+    res.status(200).send(newMessage.text);
   } catch (e) {
     // eslint-disable-next-line no-console
     console.log(e);
