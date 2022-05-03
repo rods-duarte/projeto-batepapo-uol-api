@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { MongoClient, ObjectId } from 'mongodb';
+import { stripHtml } from 'string-strip-html'; //eslint-disable-line
 import dotenv from 'dotenv';
 import dayjs from 'dayjs';
 
@@ -22,6 +23,7 @@ let db;
 (async function () {
   await client.connect();
   db = client.db(dbName);
+  // eslint-disable-next-line no-console
   console.log('\nConectado ao banco de dados');
 })();
 
@@ -32,6 +34,7 @@ app.get('/participants', async (req, res) => {
     const participants = await db.collection('participants').find().toArray();
     res.send(participants);
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.log(e);
     res.sendStatus(500);
   }
@@ -56,16 +59,18 @@ app.get('/messages', async (req, res) => {
     if (!limit || limit <= 0) limit = messages.length;
     res.send(messages.splice(messages.length - limit, messages.length));
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.log(e);
     res.sendStatus(500);
   }
 });
 
 app.post('/participants', async (req, res) => {
-  const { body } = req;
+  let { name } = req.body;
   const time = Date.now();
+  name = stripHtml(name).result.trim();
 
-  if (ParticipantSchema.validate(body).error) {
+  if (ParticipantSchema.validate({ name }).error) {
     res.sendStatus(422);
     return;
   }
@@ -73,24 +78,22 @@ app.post('/participants', async (req, res) => {
   try {
     const checkExists = await db
       .collection('participants')
-      .count({ ...body }, { limit: 1 });
+      .count({ name }, { limit: 1 });
 
     if (checkExists) {
       res.sendStatus(409);
       return;
     }
 
-    await db
-      .collection('participants')
-      .insertOne({ ...body, lastStatus: time });
+    await db.collection('participants').insertOne({ name, lastStatus: time });
     await db.collection('messages').insertOne({
-      from: body.name,
+      from: name,
       to: 'Todos',
       text: 'entra na sala...',
       type: 'status',
       time: dayjs(time).format('HH:mm:ss'),
     });
-    res.sendStatus(201);
+    res.status(201).send({ name });
   } catch (e) {
     // eslint-disable-next-line no-console
     console.log(e);
@@ -101,7 +104,7 @@ app.post('/participants', async (req, res) => {
 app.post('/messages', async (req, res) => {
   const { body, headers } = req;
   const message = {
-    from: headers.user,
+    from: stripHtml(headers.user).result.trim(),
     to: body.to,
     text: body.text,
     type: body.type,
@@ -155,6 +158,5 @@ app.post('/status', async (req, res) => {
     res.sendStatus(500);
   }
 });
-
 // eslint-disable-next-line no-console
 app.listen(process.env.PORT || 5000, () => console.log('\nServer aberto'));

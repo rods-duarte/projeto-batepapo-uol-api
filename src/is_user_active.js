@@ -13,6 +13,8 @@ export default function isActive(dbName) {
         .find({ lastStatus: { $lt: time - 10000 } })
         .toArray();
 
+      if (participants.length === 0) return;
+
       participants.forEach((participant) => {
         db.collection('participants').deleteOne({ name: participant.name });
         db.collection('messages').insertOne({
@@ -28,19 +30,4 @@ export default function isActive(dbName) {
       console.log(e);
     }
   }, 15000);
-
-  //   setInterval(async () => {
-  //     // gera um usuario a cada 5s
-  //     try {
-  //       await client.connect();
-  //       const db = client.db(dbName);
-  //       const name = Math.floor(Math.random() * 100);
-  //       //   console.log(name);
-  //       await db
-  //         .collection('participants')
-  //         .insertOne({ name, lastStatus: Date.now() });
-  //     } catch (e) {
-  //       console.log(e);
-  //     }
-  //   }, 5000);
 }

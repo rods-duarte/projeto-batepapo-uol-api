@@ -1,7 +1,7 @@
 import joi from 'joi';
 
 const ParticipantSchema = joi.object({
-  name: joi.string().min(1).max(15).required(),
+  name: joi.string().min(1).required(),
   lastStatus: joi.number(),
 });
 
