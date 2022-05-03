@@ -187,5 +187,47 @@ app.delete('/messages/:id', async (req, res) => {
   }
 });
 
+app.put('/messages/:id', async (req, res) => {
+  const { body, headers, params } = req;
+  const { id } = params;
+  const newMessage = {
+    from: headers.user,
+    to: body.to,
+    text: body.text,
+    type: body.type,
+  };
+
+  if (MessageSchema.validate(newMessage).error) {
+    res.sendStatus(422);
+    return;
+  }
+
+  try {
+    const oldMessage = await db
+      .collection('messages')
+      .findOne({ _id: new ObjectId(id) });
+
+    if (!oldMessage) {
+      res.sendStatus(404);
+      return;
+    }
+
+    if (oldMessage.from !== headers.user) {
+      res.sendStatus(401);
+      return;
+    }
+
+    await db
+      .collection('messages')
+      .updateOne({ _id: new ObjectId(id) }, { $set: newMessage });
+
+    res.sendStatus(200);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.log(e);
+    res.sendStatus(500);
+  }
+});
+
 // eslint-disable-next-line no-console
 app.listen(process.env.PORT || 5000, () => console.log('\nServer aberto'));
